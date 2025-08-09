@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab Glassware Puzzle</title>
+    <!-- Tailwind CSS for modern styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .puzzle-piece {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            cursor: pointer;
+        }
+        .puzzle-piece:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .puzzle-piece.dragging {
+            opacity: 0.7;
+            transform: scale(1.1);
+            cursor: grabbing;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .modal {
+            display: none; /* Hidden by default */
+        }
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        .hint-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(255, 255, 255, 0.8);
+            z-index: 10;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            /* The key fix: allow mouse events to pass through when not visible */
+            pointer-events: none;
+        }
+        .hint-overlay.show {
+            opacity: 1;
+            /* Allow the overlay to be interacted with when it's showing */
+            pointer-events: auto;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4 bg-slate-100">
+
+    <!-- How to Play Modal -->
+    <div id="how-to-play-modal" class="modal fixed inset-0 z-50 flex items-center justify-center modal-overlay">
+        <div class="bg-white p-8 rounded-2xl shadow-xl max-w-xl w-full text-center">
+            <h2 class="text-3xl font-bold mb-4 text-indigo-600">How to Play</h2>
+            <p class="text-lg text-gray-700 mb-6">
+                Drag the puzzle pieces from the right panel and drop them into the empty slots on the left board. Complete all 10 puzzles to win!
+            </p>
+            <button id="start-game-button" class="px-8 py-3 bg-indigo-600 text-white font-bold rounded-full shadow-lg hover:bg-indigo-700 transition-colors duration-300">
+                Start Game!
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Game UI -->
+    <main class="w-full max-w-4xl p-6 bg-white shadow-xl rounded-2xl flex flex-col items-center gap-6">
+
+        <h1 class="text-4xl font-extrabold text-gray-800 tracking-tight text-center">Lab Glassware Puzzle 🧪</h1>
+        <p id="game-progress" class="text-lg text-gray-600 text-center">Puzzle 1 of 10</p>
+
+        <div id="game-container" class="flex flex-col lg:flex-row items-center gap-8 w-full p-4">
+            <!-- The puzzle board where pieces are dropped -->
+            <div id="puzzle-board" class="grid w-full lg:w-1/2 aspect-square p-2 bg-gray-200 border-4 border-dashed border-gray-400 rounded-lg grid-cols-3 gap-1 relative">
+                <!-- Puzzle grid will be dynamically created here -->
+                <div id="hint-overlay" class="hint-overlay"></div>
+            </div>
+
+            <!-- The bank of scrambled puzzle pieces -->
+            <div id="puzzle-pieces-container" class="grid w-full lg:w-1/2 aspect-square p-2 bg-gray-300 rounded-lg grid-cols-3 gap-1">
+                <!-- Scrambled pieces will be dynamically created here -->
+            </div>
+        </div>
+
+        <!-- Game status message and controls -->
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 w-full">
+            <button id="show-hint-button" class="px-6 py-2 bg-yellow-500 text-white font-bold rounded-full shadow-lg hover:bg-yellow-600 transition-colors duration-300 focus:outline-none focus:ring-4 focus:ring-yellow-400 focus:ring-opacity-50">
+                Show Hint
+            </button>
+            <button id="reset-button" class="px-6 py-2 bg-indigo-600 text-white font-bold rounded-full shadow-lg hover:bg-indigo-700 transition-colors duration-300 focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50">
+                Reset Puzzle
+            </button>
+        </div>
+
+        <div id="status-message" class="text-xl font-semibold text-center text-gray-800 transition-opacity duration-300 mt-4">
+            <!-- Game messages will appear here -->
+        </div>
+
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const puzzleBoard = document.getElementById('puzzle-board');
+            const piecesContainer = document.getElementById('puzzle-pieces-container');
+            const statusMessage = document.getElementById('status-message');
+            const resetButton = document.getElementById('reset-button');
+            const showHintButton = document.getElementById('show-hint-button');
+            const gameProgress = document.getElementById('game-progress');
+            const howToPlayModal = document.getElementById('how-to-play-modal');
+            const startGameButton = document.getElementById('start-game-button');
+            const hintOverlay = document.getElementById('hint-overlay');
+            
+            // Define the puzzles with their names and SVG images.
+            // Using inline SVG to avoid external file dependencies.
+            const puzzles = [
+                {
+                    name: "Erlenmeyer Flask",
+                    svg: `<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M100 20 L150 70 L150 180 L50 180 L50 70 Z" fill="#f0f9ff" stroke="#000" stroke-width="2"/>
+                            <rect x="80" y="20" width="40" height="20" fill="#f0f9ff" stroke="#000" stroke-width="2"/>
+                            <path d="M150 70 L50 70" stroke="#000" stroke-width="1"/>
+                            <path d="M140 100 L60 100" stroke="#000" stroke-width="1"/>
+                            <text x="65" y="175" font-family="sans-serif" font-size="10" fill="#6b7280">100ml</text>
+                          </svg>`
+                },
+                {
+                    name: "Beaker",
+                    svg: `<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="50" y="20" width="100" height="150" fill="#f0f9ff" stroke="#000" stroke-width="2" rx="10" ry="10"/>
+                            <path d="M 50 20 L 40 20 L 40 180 L 50 180" fill="#f0f9ff" stroke="#000" stroke-width="2"/>
+                            <path d="M 150 20 L 160 20 L 160 180 L 150 180" fill="#f0f9ff" stroke="#000" stroke-width="2"/>
+                            <path d="M 50 170 L 150 170" stroke="#000" stroke-width="1"/>
+                            <path d="M 50 130 L 150 130" stroke="#000" stroke-width="1"/>
+                            <path d="M 50 90 L 150 90" stroke="#000" stroke-width="1"/>
+                            <text x="55" y="165" font-family="sans-serif" font-size="10" fill="#6b7280">100ml</text>
+                            <text x="55" y="125" font-family="sans-serif" font-size="10" fill="#6b7280">50ml</text>
+                            <text x="55" y="85" font-family="sans-serif" font-size="10" fill="#6b7280">0ml</text>
+                          </svg>`
+                },
+                {
+                    name: "Round-bottom Flask",
+                    svg: `<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M100 20 A50 50 0 0 0 100 120" stroke="#000" stroke-width="2" fill="none"/>
+                            <path d="M100 120 A50 50 0 1 1 100 180" stroke="#000" stroke-width="2" fill="#f0f9ff"/>
+                            <path d="M100 120 A50 50 0 1 0 100 180" stroke="#000" stroke-width="2" fill="none"/>
+                            <path d="M100 20 L100 120" stroke="#000" stroke-width="2" fill="#f0f9ff"/>
+                            <rect x="90" y="20" width="20" height="20" fill="#f0f9ff" stroke="#000" stroke-width="2"/>
+                          </svg>`
+                },
+                {
+                    name: "Test Tube",
+                    svg: `<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M90 20 L90 180 Q90 190 100 190 Q110 190 110 180 L110 20 Z" fill="#f0f9ff" stroke="#000" stroke-width="2"/>
+                            <rect x="90" y="20" width="20" height="10" fill="#f0f9ff" stroke="#000" stroke-width="2"/>
+                          </svg>`
+                },
+                {
+                    name: "Bunsen Burner",
+                    svg: `<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="70" y="150" width="60" height="30" fill="#bbb" stroke="#000" stroke-width="2" rx="5" ry="5"/>
+                            <rect x="85" y="50" width="30" height="100" fill="#ccc" stroke="#000" stroke-width="2"/>
+                            <rect x="90" y="30" width="20" height="20" fill="#ddd" stroke="#000" stroke-width="2"/>
+                          </svg>`
+                },
+                {
+                    name: "Burette",
+                    svg: `<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="95" y="20" width="10" height="160" fill="#f0f9ff" stroke="#000" stroke-width="2"/>
+                            <path d="M95 180 L105 180 L105 190 Q100 195 95 190 Z" fill="#f0f9ff" stroke="#000" stroke-width="2"/>
+                            <rect x="80" y="120" width="40" height="10" fill="#ddd" stroke="#000" stroke-width="2"/>
+                          </svg>`
+                },
+                {
+                    name: "Graduated Cylinder",
+                    svg: `<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M60 20 L140 20 Q145 20 145 25 L145 180 Q145 185 140 185 L60 185 Q55 185 55 180 L55 25 Q55 20 60 20 Z" fill="#f0f9ff" stroke="#000" stroke-width="2"/>
+                          </svg>`
+                },
+                {
+                    name: "Volumetric Flask",
+                    svg: `<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M100 180 A70 70 0 1 0 100 40 Z" fill="#f0f9ff" stroke="#000" stroke-width="2"/>
+                            <rect x="90" y="20" width="20" height="20" fill="#f0f9ff" stroke="#000" stroke-width="2"/>
+                          </svg>`
+                },
+                {
+                    name: "Watch Glass",
+                    svg: `<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M30 100 A70 70 0 0 1 170 100" fill="#f0f9ff" stroke="#000" stroke-width="2"/>
+                            <path d="M30 100 A70 70 0 0 0 170 100" fill="none" stroke-width="2"/>
+                          </svg>`
+                },
+                {
+                    name: "Pipette",
+                    svg: `<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M100 20 L105 180 L95 180 Z" fill="#f0f9ff" stroke="#000" stroke-width="2"/>
+                            <rect x="90" y="20" width="20" height="10" fill="#bbb" stroke="#000" stroke-width="2"/>
+                          </svg>`
+                }
+            ];
+
+            const rows = 3;
+            const cols = 3;
+            const totalPieces = rows * cols;
+            
+            let currentPuzzleIndex = 0;
+            let draggingPiece = null;
+
+            // --- Game Initialization and Reset ---
+            function initializeGame(puzzleIndex) {
+                puzzleBoard.innerHTML = '';
+                piecesContainer.innerHTML = '';
+                statusMessage.textContent = ``;
+                
+                const currentPuzzle = puzzles[puzzleIndex];
+                
+                document.querySelector('h1').textContent = currentPuzzle.name + ' Puzzle 🧪';
+                gameProgress.textContent = `Puzzle ${puzzleIndex + 1} of ${puzzles.length}`;
+
+                const pieces = [];
+                for (let i = 0; i < totalPieces; i++) {
+                    const row = Math.floor(i / cols);
+                    const col = i % cols;
+                    
+                    const piece = document.createElement('div');
+                    piece.classList.add('puzzle-piece', 'bg-white', 'rounded-lg', 'shadow-md', 'border-2', 'border-gray-300', 'p-1');
+                    piece.setAttribute('draggable', 'true');
+                    piece.dataset.id = i;
+                    
+                    const pieceSVG = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="display:block;">
+                        <defs>
+                            <clipPath id="clip-${i}">
+                                <rect x="${col * (200/cols)}" y="${row * (200/rows)}" width="${200/cols}" height="${200/rows}" />
+                            </clipPath>
+                        </defs>
+                        <g clip-path="url(#clip-${i})">
+                            ${currentPuzzle.svg}
+                        </g>
+                    </svg>`;
+                    
+                    piece.innerHTML = pieceSVG;
+                    pieces.push(piece);
+                }
+
+                for (let i = 0; i < totalPieces; i++) {
+                    const dropZone = document.createElement('div');
+                    dropZone.classList.add('w-full', 'h-full', 'drop-zone');
+                    dropZone.dataset.id = i;
+                    puzzleBoard.appendChild(dropZone);
+                }
+                
+                // Add the hint overlay back to the board
+                puzzleBoard.appendChild(hintOverlay);
+
+                const shuffledPieces = [...pieces].sort(() => Math.random() - 0.5);
+                shuffledPieces.forEach(piece => {
+                    piecesContainer.appendChild(piece);
+                });
+            }
+
+            // --- Drag and Drop Event Listeners ---
+            piecesContainer.addEventListener('dragstart', (e) => {
+                const target = e.target.closest('.puzzle-piece');
+                if (target) {
+                    draggingPiece = target;
+                    target.classList.add('dragging');
+                    e.dataTransfer.setData('text/plain', target.dataset.id);
+                }
+            });
+
+            piecesContainer.addEventListener('dragend', (e) => {
+                const target = e.target.closest('.puzzle-piece');
+                if (target) {
+                    target.classList.remove('dragging');
+                    draggingPiece = null;
+                }
+            });
+            
+            puzzleBoard.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const dropZone = e.target.closest('.drop-zone');
+                if (dropZone && !dropZone.hasChildNodes()) {
+                    dropZone.classList.add('bg-indigo-200');
+                }
+            });
+            
+            puzzleBoard.addEventListener('dragleave', (e) => {
+                 const dropZone = e.target.closest('.drop-zone');
+                 if (dropZone) {
+                     dropZone.classList.remove('bg-indigo-200');
+                 }
+            });
+
+            puzzleBoard.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const dropZone = e.target.closest('.drop-zone');
+                const pieceId = e.dataTransfer.getData('text/plain');
+                const piece = document.querySelector(`.puzzle-piece[data-id="${pieceId}"]`);
+                
+                if (dropZone && !dropZone.hasChildNodes() && piece) {
+                    dropZone.classList.remove('bg-indigo-200');
+                    dropZone.appendChild(piece);
+                    checkWin();
+                }
+            });
+
+            // --- Win Condition Check ---
+            function checkWin() {
+                const dropZones = Array.from(puzzleBoard.children).filter(el => el.classList.contains('drop-zone'));
+                const solved = dropZones.every(zone => {
+                    const piece = zone.firstElementChild;
+                    return piece && parseInt(piece.dataset.id) === parseInt(zone.dataset.id);
+                });
+
+                if (solved) {
+                    if (currentPuzzleIndex < puzzles.length - 1) {
+                        statusMessage.textContent = "✅ Correct! Moving to the next puzzle...";
+                        statusMessage.classList.remove('text-gray-800');
+                        statusMessage.classList.add('text-green-600', 'animate-pulse');
+                        setTimeout(() => {
+                            currentPuzzleIndex++;
+                            initializeGame(currentPuzzleIndex);
+                            statusMessage.classList.remove('text-green-600', 'animate-pulse');
+                            statusMessage.classList.add('text-gray-800');
+                        }, 1500);
+                    } else {
+                        endGame();
+                    }
+                }
+            }
+
+            function endGame() {
+                puzzleBoard.innerHTML = '';
+                piecesContainer.innerHTML = '';
+                document.querySelector('h1').textContent = "Congratulations! �";
+                gameProgress.textContent = "You've successfully completed all the puzzles!";
+                statusMessage.textContent = "You are a Lab Glassware Master!";
+                statusMessage.classList.add('text-blue-600', 'animate-pulse');
+                resetButton.textContent = "Play Again?";
+                showHintButton.style.display = 'none';
+            }
+
+            // --- Button Event Listeners ---
+            resetButton.addEventListener('click', () => {
+                currentPuzzleIndex = 0;
+                initializeGame(currentPuzzleIndex);
+                resetButton.textContent = "Reset Puzzle";
+                statusMessage.classList.remove('text-blue-600', 'text-green-600', 'animate-pulse');
+                statusMessage.classList.add('text-gray-800');
+                showHintButton.style.display = 'inline-block';
+            });
+
+            showHintButton.addEventListener('click', () => {
+                const currentPuzzle = puzzles[currentPuzzleIndex];
+                hintOverlay.innerHTML = `<div class="w-full h-full p-2">${currentPuzzle.svg}</div>`;
+                hintOverlay.classList.add('show');
+                
+                statusMessage.textContent = "Hint used! See the solved image.";
+                statusMessage.classList.add('text-orange-500');
+
+                setTimeout(() => {
+                    hintOverlay.classList.remove('show');
+                    statusMessage.textContent = "";
+                    statusMessage.classList.remove('text-orange-500');
+                }, 2000);
+            });
+            
+            // Start game button in modal
+            startGameButton.addEventListener('click', () => {
+                howToPlayModal.style.display = 'none';
+                initializeGame(currentPuzzleIndex);
+            });
+
+            // Show the modal on initial load
+            howToPlayModal.style.display = 'flex';
+        });
+    </script>
+
+</body>
+</html>
+�
