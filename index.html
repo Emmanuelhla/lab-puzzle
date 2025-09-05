@@ -338,12 +338,23 @@
                     confettiRadius: 6,
                     confettiNumber: 500
                 });
+                // Clear the puzzle board
                 puzzleBoard.innerHTML = '';
+
+                // Create a new image element for the celebration emoji
+                const celebrationEmoji = document.createElement('img');
+                celebrationEmoji.src = 'assets/party-face-emoji-on-transparent-free-png.webp';
+                celebrationEmoji.alt = 'Celebration Emoji';
+                celebrationEmoji.classList.add('absolute', 'inset-0', 'w-full', 'h-full', 'object-contain', 'p-4', 'animate-pulse');
+
+                // Append the emoji to the board
+                puzzleBoard.appendChild(celebrationEmoji);
+
                 piecesContainer.innerHTML = '';
                 mainTitle.innerHTML = `
                     Congratulations! 🎉
                 `;
-                gameProgress.textContent = "You've successfully completed all the puzzles!";
+                gameProgress.textContent = "You've successfully completed all the puzzles! 🎉";
                 statusMessage.textContent = "You are an amazing puzzle master!";
                 statusMessage.classList.add('text-purple-600', 'animate-pulse');
                 resetButton.textContent = "Play Again?";
