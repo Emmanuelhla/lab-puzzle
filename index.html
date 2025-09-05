@@ -1,411 +1,374 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lab Glassware Puzzle</title>
-    <!-- Tailwind CSS for modern styling -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f3f4f6;
-        }
-        .puzzle-piece {
-            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-            cursor: pointer;
-        }
-        .puzzle-piece:hover {
-            transform: scale(1.05);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        }
-        .puzzle-piece.dragging {
-            opacity: 0.7;
-            transform: scale(1.1);
-            cursor: grabbing;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-        }
-        .modal {
-            display: none; /* Hidden by default */
-        }
-        .modal-overlay {
-            background-color: rgba(0, 0, 0, 0.5);
-        }
-        .hint-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: rgba(255, 255, 255, 0.8);
-            z-index: 10;
-            opacity: 0;
-            transition: opacity 0.3s ease-in-out;
-            pointer-events: none;
-        }
-        .hint-overlay.show {
-            opacity: 1;
-            pointer-events: auto;
-        }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Awesome Puzzle Adventure!</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/js-confetti@latest/dist/js-confetti.browser.js"></script>
+    <style>
+    body {
+        font-family: 'Inter', sans-serif;
+        background-color: #f3f4f6;
+    }
+    .puzzle-piece {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        cursor: grab;
+        background-size: 200% 200%;
+        z-index: 20; /* Ensure puzzle pieces are always on top */
+        position: relative; /* Needed for z-index to work */
+    }
+    .puzzle-piece:hover {
+        transform: scale(1.05);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    .puzzle-piece.dragging {
+        opacity: 0.7;
+        transform: scale(1.1);
+        cursor: grabbing;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    /* New style for dropped pieces */
+    .puzzle-piece.dropped {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+    }
+    .modal {
+        display: none;
+    }
+    .modal-overlay {
+        background-color: rgba(0, 0, 0, 0.5);
+    }
+</style>
 </head>
-<body class="flex items-center justify-center min-h-screen p-4 bg-slate-100">
+<body class="flex items-center justify-center min-h-screen p-4 bg-sky-200">
 
-    <!-- How to Play Modal -->
-    <div id="how-to-play-modal" class="modal fixed inset-0 z-50 flex items-center justify-center modal-overlay">
-        <div class="bg-white p-8 rounded-2xl shadow-xl max-w-xl w-full text-center">
-            <h2 class="text-3xl font-bold mb-4 text-indigo-600">How to Play</h2>
-            <p class="text-lg text-gray-700 mb-6">
-                Drag the puzzle pieces from the right panel and drop them into the empty slots on the left board. Complete all 10 puzzles to win!
-            </p>
-            <button id="start-game-button" class="px-8 py-3 bg-indigo-600 text-white font-bold rounded-full shadow-lg hover:bg-indigo-700 transition-colors duration-300">
-                Start Game!
-            </button>
-        </div>
-    </div>
+    <div id="how-to-play-modal" class="modal fixed inset-0 z-50 flex items-center justify-center modal-overlay">
+        <div class="bg-white p-8 rounded-2xl shadow-xl max-w-xl w-full text-center">
+            <h2 class="text-3xl font-bold mb-4 text-purple-600">Welcome to the Puzzle Adventure! 🚀</h2>
+            <p class="text-lg text-gray-700 mb-6">
+                Drag the puzzle pieces from the right panel and drop them into the empty slots on the left board. Complete all the puzzles to win!
+            </p>
+            <button id="start-game-button" class="px-8 py-3 bg-purple-600 text-white font-bold rounded-full shadow-lg hover:bg-purple-700 transition-colors duration-300">
+                Start Game!
+            </button>
+        </div>
+    </div>
 
-    <!-- Main Game UI -->
-    <main class="w-full max-w-4xl p-6 bg-white shadow-xl rounded-2xl flex flex-col items-center gap-6">
+    <div id="info-quiz-modal" class="modal fixed inset-0 z-50 flex items-center justify-center modal-overlay">
+        <div class="bg-white p-8 rounded-2xl shadow-xl max-w-xl w-full text-center flex flex-col items-center">
+            <h2 id="quiz-title" class="text-3xl font-bold mb-4 text-purple-600"></h2>
+            <p id="tool-info" class="text-lg text-gray-700 mb-6"></p>
+            <p id="quiz-question" class="text-2xl font-semibold text-gray-800 mb-4"></p>
+            <div id="quiz-options" class="flex flex-col gap-3 w-full"></div>
+            <p id="quiz-feedback" class="text-lg font-bold mt-4"></p>
+        </div>
+    </div>
 
-        <h1 id="main-title" class="text-4xl font-extrabold text-gray-800 tracking-tight text-center flex items-center justify-center gap-2">
-            <!-- Logos will be added here dynamically -->
-        </h1>
-        <p id="game-progress" class="text-lg text-gray-600 text-center">Puzzle 1 of 10</p>
+    <main class="w-full max-w-4xl p-6 bg-white shadow-2xl rounded-2xl flex flex-col items-center gap-6 transform transition-all duration-300 scale-95 hover:scale-100">
 
-        <div id="game-container" class="flex flex-col lg:flex-row items-center gap-8 w-full p-4">
-            <!-- The puzzle board where pieces are dropped -->
-            <div id="puzzle-board" class="grid w-full lg:w-1/2 aspect-square p-2 bg-gray-200 border-4 border-dashed border-gray-400 rounded-lg grid-cols-3 gap-1 relative">
-                <!-- Puzzle grid will be dynamically created here -->
-                <div id="hint-overlay" class="hint-overlay"></div>
-            </div>
+        <h1 id="main-title" class="text-4xl font-extrabold text-gray-800 tracking-tight text-center">
+            Awesome Puzzle Adventure! ✨
+        </h1>
+        <p id="game-progress" class="text-lg text-gray-600 text-center">Puzzle 1 of 6</p>
 
-            <!-- The bank of scrambled puzzle pieces -->
-            <div id="puzzle-pieces-container" class="grid w-full lg:w-1/2 aspect-square p-2 bg-gray-300 rounded-lg grid-cols-3 gap-1">
-                <!-- Scrambled pieces will be dynamically created here -->
-            </div>
-        </div>
+        <div id="game-container" class="flex flex-col lg:flex-row items-center gap-8 w-full p-4">
+            <div id="puzzle-board" class="grid w-full lg:w-1/2 aspect-square p-2 bg-gray-200 border-4 border-dashed border-gray-400 rounded-lg grid-cols-2 gap-1 relative">
+            </div>
 
-        <!-- Game status message and controls -->
-        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 w-full">
-            <button id="show-hint-button" class="px-6 py-2 bg-yellow-500 text-white font-bold rounded-full shadow-lg hover:bg-yellow-600 transition-colors duration-300 focus:outline-none focus:ring-4 focus:ring-yellow-400 focus:ring-opacity-50">
-                Show Hint
-            </button>
-            <button id="reset-button" class="px-6 py-2 bg-indigo-600 text-white font-bold rounded-full shadow-lg hover:bg-indigo-700 transition-colors duration-300 focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50">
-                Reset Puzzle
-            </button>
-        </div>
+            <div id="puzzle-pieces-container" class="grid w-full lg:w-1/2 aspect-square p-2 bg-gray-300 rounded-lg grid-cols-2 gap-1">
+            </div>
+        </div>
 
-        <div id="status-message" class="text-xl font-semibold text-center text-gray-800 transition-opacity duration-300 mt-4">
-            <!-- Game messages will appear here -->
-        </div>
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 w-full">
+            <button id="reset-button" class="px-6 py-2 bg-emerald-500 text-white font-bold rounded-full shadow-lg hover:bg-emerald-600 transition-colors duration-300 focus:outline-none focus:ring-4 focus:ring-emerald-400 focus:ring-opacity-50">
+                Reset Puzzle
+            </button>
+        </div>
 
-    </main>
+        <div id="status-message" class="text-xl font-semibold text-center text-gray-800 transition-opacity duration-300 mt-4">
+        </div>
+    </main>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const puzzleBoard = document.getElementById('puzzle-board');
-            const piecesContainer = document.getElementById('puzzle-pieces-container');
-            const statusMessage = document.getElementById('status-message');
-            const resetButton = document.getElementById('reset-button');
-            const showHintButton = document.getElementById('show-hint-button');
-            const gameProgress = document.getElementById('game-progress');
-            const howToPlayModal = document.getElementById('how-to-play-modal');
-            const startGameButton = document.getElementById('start-game-button');
-            const hintOverlay = document.getElementById('hint-overlay');
-            const mainTitle = document.getElementById('main-title');
-            
-            // Define the puzzles with their names and SVG images.
-            const puzzles = [
-                {
-                    name: "Erlenmeyer Flask",
-                    emoji: "⚗️",
-                    svg: `<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M100 20 L150 70 L150 180 L50 180 L50 70 Z" fill="#f0f9ff" stroke="#000" stroke-width="2"/>
-                            <rect x="80" y="20" width="40" height="20" fill="#f0f9ff" stroke="#000" stroke-width="2"/>
-                            <path d="M150 70 L50 70" stroke="#000" stroke-width="1"/>
-                            <path d="M140 100 L60 100" stroke="#000" stroke-width="1"/>
-                            <text x="65" y="175" font-family="sans-serif" font-size="10" fill="#6b7280">100ml</text>
-                          </svg>`
-                },
-                {
-                    name: "Beaker",
-                    emoji: "🫙",
-                    svg: `<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-                            <rect x="50" y="20" width="100" height="150" fill="#f0f9ff" stroke="#000" stroke-width="2" rx="10" ry="10"/>
-                            <path d="M 50 20 L 40 20 L 40 180 L 50 180" fill="#f0f9ff" stroke="#000" stroke-width="2"/>
-                            <path d="M 150 20 L 160 20 L 160 180 L 150 180" fill="#f0f9ff" stroke="#000" stroke-width="2"/>
-                            <path d="M 50 170 L 150 170" stroke="#000" stroke-width="1"/>
-                            <path d="M 50 130 L 150 130" stroke="#000" stroke-width="1"/>
-                            <path d="M 50 90 L 150 90" stroke="#000" stroke-width="1"/>
-                            <text x="55" y="165" font-family="sans-serif" font-size="10" fill="#6b7280">100ml</text>
-                            <text x="55" y="125" font-family="sans-serif" font-size="10" fill="#6b7280">50ml</text>
-                            <text x="55" y="85" font-family="sans-serif" font-size="10" fill="#6b7280">0ml</text>
-                          </svg>`
-                },
-                {
-                    name: "Round-bottom Flask",
-                    emoji: "⚪",
-                    svg: `<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M100 20 A50 50 0 0 0 100 120" stroke="#000" stroke-width="2" fill="none"/>
-                            <path d="M100 120 A50 50 0 1 1 100 180" stroke="#000" stroke-width="2" fill="#f0f9ff"/>
-                            <path d="M100 120 A50 50 0 1 0 100 180" stroke="#000" stroke-width="2" fill="none"/>
-                            <path d="M100 20 L100 120" stroke="#000" stroke-width="2" fill="#f0f9ff"/>
-                            <rect x="90" y="20" width="20" height="20" fill="#f0f9ff" stroke="#000" stroke-width="2"/>
-                          </svg>`
-                },
-                {
-                    name: "Test Tube",
-                    emoji: "🧪",
-                    svg: `<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M90 20 L90 180 Q90 190 100 190 Q110 190 110 180 L110 20 Z" fill="#f0f9ff" stroke="#000" stroke-width="2"/>
-                            <rect x="90" y="20" width="20" height="10" fill="#f0f9ff" stroke="#000" stroke-width="2"/>
-                          </svg>`
-                },
-                {
-                    name: "Bunsen Burner",
-                    emoji: "🔥",
-                    svg: `<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-                            <rect x="70" y="150" width="60" height="30" fill="#bbb" stroke="#000" stroke-width="2" rx="5" ry="5"/>
-                            <rect x="85" y="50" width="30" height="100" fill="#ccc" stroke="#000" stroke-width="2"/>
-                            <rect x="90" y="30" width="20" height="20" fill="#ddd" stroke="#000" stroke-width="2"/>
-                          </svg>`
-                },
-                {
-                    name: "Burette",
-                    emoji: "💧",
-                    svg: `<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-                            <rect x="95" y="20" width="10" height="160" fill="#f0f9ff" stroke="#000" stroke-width="2"/>
-                            <path d="M95 180 L105 180 L105 190 Q100 195 95 190 Z" fill="#f0f9ff" stroke="#000" stroke-width="2"/>
-                            <rect x="80" y="120" width="40" height="10" fill="#ddd" stroke="#000" stroke-width="2"/>
-                          </svg>`
-                },
-                {
-                    name: "Graduated Cylinder",
-                    emoji: "📏",
-                    svg: `<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M60 20 L140 20 Q145 20 145 25 L145 180 Q145 185 140 185 L60 185 Q55 185 55 180 L55 25 Q55 20 60 20 Z" fill="#f0f9ff" stroke="#000" stroke-width="2"/>
-                          </svg>`
-                },
-                {
-                    name: "Volumetric Flask",
-                    emoji: "⚖️",
-                    svg: `<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M100 180 A70 70 0 1 0 100 40 Z" fill="#f0f9ff" stroke="#000" stroke-width="2"/>
-                            <rect x="90" y="20" width="20" height="20" fill="#f0f9ff" stroke="#000" stroke-width="2"/>
-                          </svg>`
-                },
-                {
-                    name: "Watch Glass",
-                    emoji: "🔬",
-                    svg: `<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M30 100 A70 70 0 0 1 170 100" fill="#f0f9ff" stroke="#000" stroke-width="2"/>
-                            <path d="M30 100 A70 70 0 0 0 170 100" fill="none" stroke-width="2"/>
-                          </svg>`
-                },
-                {
-                    name: "Pipette",
-                    emoji: "💉",
-                    svg: `<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M100 20 L105 180 L95 180 Z" fill="#f0f9ff" stroke="#000" stroke-width="2"/>
-                            <rect x="90" y="20" width="20" height="10" fill="#bbb" stroke="#000" stroke-width="2"/>
-                          </svg>`
-                }
-            ];
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const puzzleBoard = document.getElementById('puzzle-board');
+            const piecesContainer = document.getElementById('puzzle-pieces-container');
+            const statusMessage = document.getElementById('status-message');
+            const resetButton = document.getElementById('reset-button');
+            const gameProgress = document.getElementById('game-progress');
+            const howToPlayModal = document.getElementById('how-to-play-modal');
+            const startGameButton = document.getElementById('start-game-button');
+            const mainTitle = document.getElementById('main-title');
+            const infoQuizModal = document.getElementById('info-quiz-modal');
+            const quizTitle = document.getElementById('quiz-title');
+            const toolInfo = document.getElementById('tool-info');
+            const quizQuestion = document.getElementById('quiz-question');
+            const quizOptions = document.getElementById('quiz-options');
+            const quizFeedback = document.getElementById('quiz-feedback');
 
-            const rows = 3;
-            const cols = 3;
-            const totalPieces = rows * cols;
-            
-            let currentPuzzleIndex = 0;
-            let draggingPiece = null;
+            const jsConfetti = new JSConfetti();
 
-            // --- Game Initialization and Reset ---
-            function initializeGame(puzzleIndex) {
-                // Clear the board and pieces container to prevent duplication
-                puzzleBoard.innerHTML = '';
-                piecesContainer.innerHTML = '';
-                statusMessage.textContent = ``;
-                
-                const currentPuzzle = puzzles[puzzleIndex];
-                
-                // Update the main title with the puzzle's name and emoji
-                mainTitle.innerHTML = `
-                    <img src="https://raw.githubusercontent.com/Emmanuelhla/game-assets/main/glasswarepuzzle.png" alt="Lab Glassware Puzzle Logo" class="w-10 h-10 rounded-full" onerror="this.onerror=null;this.src='https://placehold.co/40x40/5e5c7a/ffffff?text=🧪';"/>
-                    ${currentPuzzle.name} Puzzle ${currentPuzzle.emoji}
-                `;
-                gameProgress.textContent = `Puzzle ${puzzleIndex + 1} of ${puzzles.length}`;
+            // Define the puzzles with image URLs and new educational content
+            const puzzles = [
+                {
+                    name: "Graduated Dropper", img: "assets/graduated_dropper.jpg",
+                    info: "A graduated dropper, or Pasteur pipette, is a glass or plastic tube with a narrow opening at one end and a rubber bulb at the other. The markings on the tube indicate the volume of liquid, allowing for the transfer of specific, small amounts.",
+                    quiz: {
+                        question: "What is the primary function of a graduated dropper?",
+                        options: ["Measuring a large volume of liquid", "Heating chemicals", "Transferring a precise, small volume of liquid", "Mixing two solutions"],
+                        correctAnswer: "Transferring a precise, small volume of liquid"
+                    }
+                },
+                {
+                    name: "Clear Glass", img: "assets/clear_glass.jpg",
+                    info: "A beaker is a simple container used for stirring, mixing, and heating liquids in a laboratory. The lipped spout makes it easy to pour, and the markings on the side provide an approximate measure of volume.",
+                    quiz: {
+                        question: "What feature of a beaker helps with pouring liquids?",
+                        options: ["Its flat bottom", "The lipped spout", "The narrow opening", "Its small size"],
+                        correctAnswer: "The lipped spout"
+                    }
+                },
+                {
+                    name: "Erlenmeyer Flask Set", img: "assets/erlenmeyer_flask_set.jpg",
+                    info: "Erlenmeyer flasks are conical flasks with a flat bottom and a cylindrical neck. Their shape makes them ideal for swirling liquids without the risk of spillage. They are often used for mixing solutions and titrations.",
+                    quiz: {
+                        question: "Why is an Erlenmeyer flask a good choice for swirling liquids?",
+                        options: ["It is transparent", "Its wide bottom prevents it from tipping over", "Its conical shape and narrow neck reduce spills", "It is made of heat-resistant glass"],
+                        correctAnswer: "Its conical shape and narrow neck reduce spills"
+                    }
+                },
+                {
+                    name: "Pyrex Flask", img: "assets/pyrex_flask.jpg",
+                    info: "Pyrex is a brand of borosilicate glass, which is known for its ability to withstand extreme temperature changes without shattering. This makes Pyrex flasks highly valuable in lab settings where heating chemicals is common.",
+                    quiz: {
+                        question: "What is the main benefit of using a Pyrex flask?",
+                        options: ["It is inexpensive to produce", "It is resistant to thermal shock", "It is very light", "It is easy to clean"],
+                        correctAnswer: "It is resistant to thermal shock"
+                    }
+                },
+                {
+                    name: "Transferpette", img: "assets/transferpette.jpg",
+                    info: "A Transferpette, or micropipette, is used to transfer very precise, small volumes of liquid, often in the microliter range. It uses disposable tips to prevent cross-contamination between samples.",
+                    quiz: {
+                        question: "What is a key feature of a micropipette?",
+                        options: ["Its long neck", "Its ability to heat liquids", "Its use of disposable tips for accuracy", "Its capacity for large volumes"],
+                        correctAnswer: "Its use of disposable tips for accuracy"
+                    }
+                },
+                {
+                    name: "Volumetric Flask", img: "assets/volumetric_flask.jpg",
+                    info: "A volumetric flask is a type of lab flask with a flat bottom and a long, narrow neck with a single marking. It is used to prepare solutions to a precise, known volume, which is essential for accurate chemical analysis.",
+                    quiz: {
+                        question: "What is the key purpose of a volumetric flask?",
+                        options: ["Storing corrosive chemicals", "Measuring approximate volumes", "Preparing solutions to a precise volume", "Mixing different types of liquids"],
+                        correctAnswer: "Preparing solutions to a precise volume"
+                    }
+                }
+            ];
 
-                const pieces = [];
-                for (let i = 0; i < totalPieces; i++) {
-                    const row = Math.floor(i / cols);
-                    const col = i % cols;
-                    
-                    const piece = document.createElement('div');
-                    piece.classList.add('puzzle-piece', 'bg-white', 'rounded-lg', 'shadow-md', 'border-2', 'border-gray-300', 'p-1');
-                    piece.setAttribute('draggable', 'true');
-                    piece.dataset.id = i;
-                    
-                    const pieceSVG = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="display:block;">
-                        <defs>
-                            <clipPath id="clip-${i}">
-                                <rect x="${col * (200/cols)}" y="${row * (200/rows)}" width="${200/cols}" height="${200/rows}" />
-                            </clipPath>
-                        </defs>
-                        <g clip-path="url(#clip-${i})">
-                            ${currentPuzzle.svg}
-                        </g>
-                    </svg>`;
-                    
-                    piece.innerHTML = pieceSVG;
-                    pieces.push(piece);
-                }
+            const rows = 2;
+            const cols = 2;
+            const totalPieces = rows * cols;
 
-                for (let i = 0; i < totalPieces; i++) {
-                    const dropZone = document.createElement('div');
-                    dropZone.classList.add('w-full', 'h-full', 'drop-zone');
-                    dropZone.dataset.id = i;
-                    puzzleBoard.appendChild(dropZone);
-                }
-                
-                // Add the hint overlay back to the board
-                puzzleBoard.appendChild(hintOverlay);
+            let currentPuzzleIndex = 0;
+            let draggingPiece = null;
 
-                const shuffledPieces = [...pieces].sort(() => Math.random() - 0.5);
-                shuffledPieces.forEach(piece => {
-                    piecesContainer.appendChild(piece);
-                });
+            // --- Game Initialization and Reset ---
+            function initializeGame(puzzleIndex) {
+                puzzleBoard.innerHTML = '';
+                piecesContainer.innerHTML = '';
+                statusMessage.textContent = ``;
 
-                // Reset button text for a new puzzle
-                resetButton.textContent = "Reset Puzzle";
-            }
+                const currentPuzzle = puzzles[puzzleIndex];
 
-            // --- Drag and Drop Event Listeners ---
-            piecesContainer.addEventListener('dragstart', (e) => {
-                const target = e.target.closest('.puzzle-piece');
-                if (target) {
-                    draggingPiece = target;
-                    target.classList.add('dragging');
-                    e.dataTransfer.setData('text/plain', target.dataset.id);
-                }
-            });
+                mainTitle.innerHTML = `${currentPuzzle.name} Puzzle 🧩`;
+                gameProgress.textContent = `Puzzle ${puzzleIndex + 1} of ${puzzles.length}`;
 
-            piecesContainer.addEventListener('dragend', (e) => {
-                const target = e.target.closest('.puzzle-piece');
-                if (target) {
-                    target.classList.remove('dragging');
-                    draggingPiece = null;
-                }
-            });
-            
-            puzzleBoard.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                const dropZone = e.target.closest('.drop-zone');
-                if (dropZone && !dropZone.hasChildNodes()) {
-                    dropZone.classList.add('bg-indigo-200');
-                }
-            });
-            
-            puzzleBoard.addEventListener('dragleave', (e) => {
-                 const dropZone = e.target.closest('.drop-zone');
-                 if (dropZone) {
-                     dropZone.classList.remove('bg-indigo-200');
-                 }
-            });
+                const pieces = [];
+                for (let i = 0; i < totalPieces; i++) {
+                    const row = Math.floor(i / cols);
+                    const col = i % cols;
+                    const piece = document.createElement('div');
 
-            puzzleBoard.addEventListener('drop', (e) => {
-                e.preventDefault();
-                const dropZone = e.target.closest('.drop-zone');
-                const pieceId = e.dataTransfer.getData('text/plain');
-                const piece = document.querySelector(`.puzzle-piece[data-id="${pieceId}"]`);
-                
-                if (dropZone && !dropZone.hasChildNodes() && piece) {
-                    dropZone.classList.remove('bg-indigo-200');
-                    dropZone.appendChild(piece);
-                    checkWin();
-                }
-            });
+                    piece.classList.add('puzzle-piece', 'rounded-lg', 'shadow-md', 'border-2', 'border-purple-300');
+                    piece.style.backgroundImage = `url(${currentPuzzle.img})`;
+                    piece.style.backgroundPosition = `-${col * 100}% -${row * 100}%`;
+                    piece.setAttribute('draggable', 'true');
+                    piece.dataset.id = i;
+                    pieces.push(piece);
+                }
 
-            // --- Win Condition Check ---
-            function checkWin() {
-                const dropZones = Array.from(puzzleBoard.children).filter(el => el.classList.contains('drop-zone'));
-                const solved = dropZones.every(zone => {
-                    const piece = zone.firstElementChild;
-                    return piece && parseInt(piece.dataset.id) === parseInt(zone.dataset.id);
-                });
+                for (let i = 0; i < totalPieces; i++) {
+                    const dropZone = document.createElement('div');
+                    // Add position relative to the drop zone to act as a positioning context
+                    dropZone.classList.add('w-full', 'h-full', 'drop-zone', 'relative');
+                    dropZone.dataset.id = i;
+                    puzzleBoard.appendChild(dropZone);
+                }
 
-                if (solved) {
-                    if (currentPuzzleIndex < puzzles.length - 1) {
-                        statusMessage.textContent = "✅ Correct! Moving to the next puzzle...";
-                        statusMessage.classList.remove('text-gray-800');
-                        statusMessage.classList.add('text-green-600', 'animate-pulse');
-                        setTimeout(() => {
-                            currentPuzzleIndex++;
-                            initializeGame(currentPuzzleIndex);
-                            statusMessage.classList.remove('text-green-600', 'animate-pulse');
-                            statusMessage.classList.add('text-gray-800');
-                        }, 1500);
-                    } else {
-                        endGame();
-                    }
-                }
-            }
+                const shuffledPieces = [...pieces].sort(() => Math.random() - 0.5);
+                shuffledPieces.forEach(piece => {
+                    piecesContainer.appendChild(piece);
+                });
 
-            function endGame() {
-                puzzleBoard.innerHTML = '';
-                piecesContainer.innerHTML = '';
-                mainTitle.innerHTML = `
-                    <img src="https://raw.githubusercontent.com/Emmanuelhla/game-assets/main/glasswarepuzzle.png" alt="Lab Glassware Puzzle Logo" class="w-10 h-10 rounded-full" onerror="this.onerror=null;this.src='https://placehold.co/40x40/5e5c7a/ffffff?text=🧪';"/>
-                    Congratulations! 🎉
-                `;
-                gameProgress.textContent = "You've successfully completed all the puzzles!";
-                statusMessage.textContent = "You are a Lab Glassware Master!";
-                statusMessage.classList.add('text-blue-600', 'animate-pulse');
-                resetButton.textContent = "Play Again?";
-                showHintButton.style.display = 'none';
-            }
+                resetButton.textContent = "Reset Puzzle";
+            }
 
-            // --- Button Event Listeners ---
-            resetButton.addEventListener('click', () => {
-                if (resetButton.textContent === "Play Again?") {
-                    currentPuzzleIndex = 0;
-                    initializeGame(currentPuzzleIndex);
-                    showHintButton.style.display = 'inline-block';
-                } else {
-                    initializeGame(currentPuzzleIndex);
-                }
-                statusMessage.classList.remove('text-blue-600', 'text-green-600', 'animate-pulse', 'text-orange-500');
-                statusMessage.classList.add('text-gray-800');
-                statusMessage.textContent = "Puzzle reset.";
-            });
+            // --- Drag and Drop Event Listeners ---
+            piecesContainer.addEventListener('dragstart', (e) => {
+                const target = e.target.closest('.puzzle-piece');
+                if (target) {
+                    draggingPiece = target;
+                    target.classList.add('dragging');
+                    e.dataTransfer.setData('text/plain', target.dataset.id);
+                }
+            });
 
-            showHintButton.addEventListener('click', () => {
-                const currentPuzzle = puzzles[currentPuzzleIndex];
-                hintOverlay.innerHTML = `<div class="w-full h-full p-2">${currentPuzzle.svg}</div>`;
-                hintOverlay.classList.add('show');
-                
-                statusMessage.textContent = "Hint used! See the solved image.";
-                statusMessage.classList.add('text-orange-500');
+            piecesContainer.addEventListener('dragend', (e) => {
+                const target = e.target.closest('.puzzle-piece');
+                if (target) {
+                    target.classList.remove('dragging');
+                    draggingPiece = null;
+                }
+            });
 
-                setTimeout(() => {
-                    hintOverlay.classList.remove('show');
-                    statusMessage.textContent = "";
-                    statusMessage.classList.remove('text-orange-500');
-                }, 2000);
-            });
-            
-            // Start game button in modal
-            startGameButton.addEventListener('click', () => {
-                howToPlayModal.style.display = 'none';
-                initializeGame(currentPuzzleIndex);
-            });
+            puzzleBoard.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const dropZone = e.target.closest('.drop-zone');
+                if (dropZone && !dropZone.hasChildNodes()) {
+                    dropZone.classList.add('bg-purple-200');
+                }
+            });
 
-            // Show the modal on initial load
-            howToPlayModal.style.display = 'flex';
-        });
-    </script>
+            puzzleBoard.addEventListener('dragleave', (e) => {
+                const dropZone = e.target.closest('.drop-zone');
+                if (dropZone) {
+                    dropZone.classList.remove('bg-purple-200');
+                }
+            });
 
+            puzzleBoard.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const dropZone = e.target.closest('.drop-zone');
+                const pieceId = e.dataTransfer.getData('text/plain');
+                const piece = document.querySelector(`.puzzle-piece[data-id="${pieceId}"]`);
+
+                if (dropZone && !dropZone.hasChildNodes() && piece) {
+                    dropZone.classList.remove('bg-purple-200');
+                    dropZone.appendChild(piece);
+                    // Add the 'dropped' class to handle positioning
+                    piece.classList.add('dropped');
+                    checkWin();
+                }
+            });
+
+            // --- Win Condition Check ---
+            function checkWin() {
+                const dropZones = Array.from(puzzleBoard.children).filter(el => el.classList.contains('drop-zone'));
+                const solved = dropZones.every(zone => {
+                    const piece = zone.firstElementChild;
+                    return piece && parseInt(piece.dataset.id) === parseInt(zone.dataset.id);
+                });
+
+                const allFilled = dropZones.every(zone => zone.hasChildNodes());
+
+                if (solved) {
+                    // Confetti and then show the info/quiz modal
+                    jsConfetti.addConfetti();
+                    setTimeout(() => {
+                        showInfoAndQuiz();
+                    }, 1500);
+                } else if (allFilled) {
+                    statusMessage.textContent = "❌ That's not quite right. Reset and try again!";
+                    statusMessage.classList.add('text-red-600', 'animate-pulse');
+                    setTimeout(() => {
+                        statusMessage.classList.remove('text-red-600', 'animate-pulse');
+                    }, 3000);
+                }
+            }
+            
+            // --- Info & Quiz Functions ---
+            function showInfoAndQuiz() {
+                const currentPuzzle = puzzles[currentPuzzleIndex];
+                quizTitle.textContent = `${currentPuzzle.name}`;
+                toolInfo.textContent = currentPuzzle.info;
+                quizQuestion.textContent = currentPuzzle.quiz.question;
+                
+                quizOptions.innerHTML = '';
+                currentPuzzle.quiz.options.forEach(option => {
+                    const button = document.createElement('button');
+                    button.textContent = option;
+                    button.classList.add('px-4', 'py-2', 'bg-gray-200', 'rounded-lg', 'text-gray-800', 'font-bold', 'hover:bg-gray-300', 'transition-colors', 'duration-200');
+                    button.addEventListener('click', () => handleQuizAnswer(option, currentPuzzle.quiz.correctAnswer));
+                    quizOptions.appendChild(button);
+                });
+                
+                quizFeedback.textContent = '';
+                infoQuizModal.style.display = 'flex';
+            }
+            
+            function handleQuizAnswer(selectedOption, correctAnswer) {
+                if (selectedOption === correctAnswer) {
+                    quizFeedback.textContent = "✅ Correct! Great job!";
+                    quizFeedback.classList.remove('text-red-600');
+                    quizFeedback.classList.add('text-green-600');
+                    setTimeout(() => {
+                        infoQuizModal.style.display = 'none';
+                        if (currentPuzzleIndex < puzzles.length - 1) {
+                            currentPuzzleIndex++;
+                            initializeGame(currentPuzzleIndex);
+                        } else {
+                            endGame();
+                        }
+                    }, 1500);
+                } else {
+                    quizFeedback.textContent = "❌ Incorrect. Try again!";
+                    quizFeedback.classList.remove('text-green-600');
+                    quizFeedback.classList.add('text-red-600');
+                }
+            }
+
+            function endGame() {
+                jsConfetti.addConfetti({
+                    emojis: ['🎉', '🚀', '✨', '🌟'],
+                    confettiRadius: 6,
+                    confettiNumber: 500
+                });
+                puzzleBoard.innerHTML = '';
+                piecesContainer.innerHTML = '';
+                mainTitle.innerHTML = `
+                    Congratulations! 🎉
+                `;
+                gameProgress.textContent = "You've successfully completed all the puzzles!";
+                statusMessage.textContent = "You are an amazing puzzle master!";
+                statusMessage.classList.add('text-purple-600', 'animate-pulse');
+                resetButton.textContent = "Play Again?";
+            }
+
+            // --- Button Event Listeners ---
+            resetButton.addEventListener('click', () => {
+                if (resetButton.textContent === "Play Again?") {
+                    currentPuzzleIndex = 0;
+                    initializeGame(currentPuzzleIndex);
+                } else {
+                    initializeGame(currentPuzzleIndex);
+                }
+                statusMessage.classList.remove('text-purple-600', 'text-emerald-600', 'animate-pulse', 'text-red-600');
+                statusMessage.textContent = "Puzzle reset.";
+            });
+
+            startGameButton.addEventListener('click', () => {
+                howToPlayModal.style.display = 'none';
+                initializeGame(currentPuzzleIndex);
+            });
+
+            // Initial call to show the "how to play" modal at startup
+            howToPlayModal.style.display = 'flex';
+        });
+    </script>
 </body>
 </html>
